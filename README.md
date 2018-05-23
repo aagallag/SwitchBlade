@@ -1,16 +1,14 @@
-# hekate
+# SwitchBlade
 
-![Image of Hekate](https://upload.wikimedia.org/wikipedia/commons/f/fc/H%C3%A9cate_-_Mallarm%C3%A9.png)
+**DO NOT UPDATE FOR THIS!**
 
-Nintendo Switch bootloader, firmware patcher, and more.
+Instantly loads up Horizon with homebrew enabled for 1.x/2.x/4.x/5.x Switches with all the other functions of Hekate removed. It is recommended to only use this for development, anyone else should wait for Atmosphere.
 
-## ipl config
+By StevenMattera  
+**Based on the awesome work of:** naehrwert, and st4rk  
+**Thanks to:** derrek, nedwill, plutoo, shuffle2, smea, thexyz, and yellows8  
+**Greetings to:** fincs, hexkyz, SciresM, Shiny Quagsire, and WinterMute  
+**Open source and free packages used:**
+* FatFs R0.13a (Copyright (C) 2017, ChaN)
+* bcl-1.2.0 (Copyright (c) 2003-2006 Marcus Geelnard)
 
-The ipl can be configured via 'hekate_ipl.ini' (if it is present on the SD card). Each ini section represents a boot entry, except for the special section 'config' that controls the global configuration.
-
-Possible key/value combinations:
-
- - warmboot={SD path}
- - secmon={SD path}
- - kernel={SD path}
- - kip1={SD path}
