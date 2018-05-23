@@ -50,7 +50,7 @@ LDFLAGS = $(ARCH) -nostartfiles -lgcc -Wl,--nmagic,--gc-sections
 
 .PHONY: all clean
 
-all: $(TARGET).bin
+all: $(BUILD_BINARY)/$(TARGET).bin
 
 clean:
 	@rm -rf $(OBJS)
@@ -61,7 +61,7 @@ $(BUILD_BINARY)/$(TARGET).bin: $(BUILD)/$(TARGET).elf
 	$(OBJCOPY) -S -O binary $< $@
 
 $(BUILD)/$(TARGET).elf: $(OBJS)
-	$(CC) $(LDFLAGS) -T ipl/link.ld $^ -o $@
+	$(CC) $(LDFLAGS) -T src/link.ld $^ -o $@
 
 $(BUILD)/%.o: $(SOURCEDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
