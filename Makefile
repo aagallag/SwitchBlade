@@ -30,7 +30,6 @@ OBJS = $(addprefix $(BUILD)/, \
 	sdmmc_driver.o \
 	sdram.o \
 	sdram_lp0.o \
-	tui.o \
 	util.o \
 	di.o \
 	gfx.o \
@@ -54,7 +53,7 @@ all: $(BUILD_BINARY)/$(TARGET).bin
 
 clean:
 	@rm -rf $(OBJS)
-	@rm -rf $(BUILD)
+	@rm -rf $(BUILD)/$(TARGET).elf
 	@rm -rf $(BUILD_BINARY)/$(TARGET).bin
 
 $(BUILD_BINARY)/$(TARGET).bin: $(BUILD)/$(TARGET).elf
