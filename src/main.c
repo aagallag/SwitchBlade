@@ -39,6 +39,7 @@
 #include "se.h"
 #include "se_t210.h"
 #include "hos.h"
+#include "splash.h"
 
 //TODO: ugly.
 sdmmc_t sd_sdmmc;
@@ -66,7 +67,7 @@ int sd_mount(gfx_con_t * con)
 		}
 		else
 		{
-			gfx_prompt(con, error, "Failed to mount SD card (FatFS Error %d).\n(make sure that a FAT32/exFAT partition exists)", res);
+			gfx_prompt(con, error, "Failed to mount SD card (FatFS Error %d). Make sure that a FAT32/exFAT partition exists.", res);
 		}
 	}
 
@@ -77,7 +78,7 @@ void sd_unmount(gfx_con_t * con)
 {
 	if (sd_mounted)
 	{
-		gfx_prompt(con, ok, "Unmounting SD card...\n");
+		gfx_prompt(con, ok, "Unmounting SD card...");
 		f_mount(NULL, "", 1);
 		sdmmc_storage_end(&sd_storage);
 	}
@@ -264,13 +265,15 @@ void config_hw()
 void launch_firmware(gfx_con_t * con, bool hen)
 {	
 	if (sd_mount(con)) {
-		// Draw Splash.
+		con->prompts_enabled = draw_splash(con);
 
-		if (!hos_launch(con, hen))
-			gfx_prompt(con, error, "Failed to launch firmware.\n");
+		if (!hos_launch(con, hen)) {
+			con->prompts_enabled = true;
+			gfx_prompt(con, error, "Failed to launch firmware.");
+		}
 	}
 	else
-		gfx_prompt(con, error, "Failed to mount SD card (make sure that it is inserted).\n");
+		gfx_prompt(con, error, "Failed to mount SD card (make sure that it is inserted).");
 }
 
 void power_off(gfx_con_t * con)

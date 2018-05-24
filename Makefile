@@ -38,6 +38,7 @@ OBJS = $(addprefix $(BUILD)/, \
 	se.o \
 	tsec.o \
 	uart.o \
+	splash.o \
 )
 OBJS += $(addprefix $(BUILD)/, diskio.o ff.o ffunicode.o)
 

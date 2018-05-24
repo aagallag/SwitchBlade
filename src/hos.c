@@ -145,24 +145,15 @@ int keygen(u8 *keyblob, u32 kb, void *tsec_fw)
 	se_aes_unwrap_key(0x08, 0x0C, key8_keyseed);
 }
 
-
 typedef struct _launch_ctxt_t
 {
 	void *keyblob;
-
 	void *pkg1;
 	const pkg1_id_t *pkg1_id;
-
-	void *warmboot;
-	u32 warmboot_size;
-	void *secmon;
-	u32 secmon_size;
-
 	void *pkg2;
-	u32 pkg2_size;
-
 	void *kernel;
 	u32 kernel_size;
+	u32 pkg2_size;
 	link_t kip1_list;
 } launch_ctxt_t;
 
@@ -187,10 +178,10 @@ static bool _read_emmc_pkg1(launch_ctxt_t *ctxt, gfx_con_t * con)
 	ctxt->pkg1_id = pkg1_identify(ctxt->pkg1);
 	if (!ctxt->pkg1_id)
 	{
-		gfx_prompt(con, error, "Could not identify pkg1 version (= '%s').\n", (char *)ctxt->pkg1 + 0x10);
+		gfx_prompt(con, error, "Could not identify pkg1 version (= '%s').", (char *)ctxt->pkg1 + 0x10);
 		goto out;
 	}
-	gfx_prompt(con, message, "Identified pkg1('%s'), and keyblob(%d)\n", (char *)(ctxt->pkg1 + 0x10), ctxt->pkg1_id->kb);
+	gfx_prompt(con, message, "Identified pkg1('%s'), and keyblob(%d)", (char *)(ctxt->pkg1 + 0x10), ctxt->pkg1_id->kb);
 
 	//Read the correct keyblob.
 	ctxt->keyblob = (u8 *)malloc(NX_EMMC_BLOCKSIZE);
@@ -216,7 +207,7 @@ static bool _read_emmc_pkg2(launch_ctxt_t *ctxt, gfx_con_t * con)
 	LIST_INIT(gpt);
 	nx_emmc_gpt_parse(&gpt, &storage);
 
-	gfx_prompt(con, message, "Parsed GPT\n");
+	gfx_prompt(con, message, "Parsed GPT");
 
 	//Find package2 partition.
 	emmc_part_t *pkg2_part = nx_emmc_part_find(&gpt, "BCPKG2-1-Normal-Main");
@@ -230,11 +221,11 @@ static bool _read_emmc_pkg2(launch_ctxt_t *ctxt, gfx_con_t * con)
 	u32 *hdr = (u32 *)(tmp + 0x100);
 	u32 pkg2_size = hdr[0] ^ hdr[2] ^ hdr[3];
 	free(tmp);
-	gfx_prompt(con, message, "The size of pkg2 is %08X\n", pkg2_size);
+	gfx_prompt(con, message, "The size of pkg2 is %08X", pkg2_size);
 
 	//Read in package2.
 	u32 pkg2_size_aligned = ALIGN(pkg2_size, NX_EMMC_BLOCKSIZE);
-	gfx_prompt(con, message, "The size of pkg2 aligned is %08X\n", pkg2_size_aligned);
+	gfx_prompt(con, message, "The size of pkg2 aligned is %08X", pkg2_size_aligned);
 
 	ctxt->pkg2 = malloc(pkg2_size_aligned);
 	ctxt->pkg2_size = pkg2_size;
@@ -253,7 +244,7 @@ static bool _config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con
 {
 	FIL fp;
 	if (f_open(&fp, value, FA_READ) != FR_OK) {
-		gfx_prompt(con, ok, "Failed to load %s.\n", value);
+		gfx_prompt(con, error, "Failed to load %s.", value);
 		return false;
 	}
 
@@ -261,7 +252,7 @@ static bool _config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con
 	mkip1->kip1 = malloc(f_size(&fp));
 	f_read(&fp, mkip1->kip1, f_size(&fp), NULL);
 
-	gfx_prompt(con, ok, "Loaded %s.\n", value);
+	gfx_prompt(con, ok, "Loaded %s.", value);
 
 	f_close(&fp);
 	list_append(&ctxt->kip1_list, &mkip1->link);
@@ -282,18 +273,27 @@ bool hos_launch(gfx_con_t * con, bool hen)
 			return false;
 	}
 
+	gfx_prompt(con, message, "Loading pkg1...");
+
 	//Read package1 and the correct keyblob.
 	if (!_read_emmc_pkg1(&ctxt, con)) {
-		gfx_prompt(con, error, "Failed to load pkg1 and keyblob.\n");
+		gfx_prompt(con, error, "Failed to load pkg1.");
 		return false;
 	}
 
-	gfx_prompt(con, ok, "Loaded pkg1 and keyblob.\n");
+	gfx_prompt(con, ok, "Loaded pkg1.");
+	gfx_prompt(con, message, "Generating keys...");
 
 	//Generate keys.
 	keygen(ctxt.keyblob, ctxt.pkg1_id->kb, (u8 *)ctxt.pkg1 + ctxt.pkg1_id->tsec_off);
 
-	gfx_prompt(con, ok, "Generated keys.\n");
+	gfx_prompt(con, ok, "Generated keys.");
+	gfx_prompt(con, message, "Decrypting and unpacking pkg1...");
+
+	pkg1_decrypt(ctxt.pkg1_id, ctxt.pkg1);
+	pkg1_unpack((void *)0x8000D000, (void *)ctxt.pkg1_id->secmon_base, ctxt.pkg1_id, ctxt.pkg1);
+
+	gfx_prompt(con, ok, "Decrypted and unpacked pkg1.");
 
 	//Set warmboot address in PMC.
 	PMC(APBDEV_PMC_SCRATCH1) = 0x8000D000;
@@ -302,50 +302,60 @@ bool hos_launch(gfx_con_t * con, bool hen)
 	patch_t *secmon_patchset = ctxt.pkg1_id->secmon_patchset;
 	
 	if (secmon_patchset != NULL && hen == true) {
+		gfx_prompt(con, message, "Patching secmon...");
+
 		for (u32 i = 0; secmon_patchset[i].off != 0xFFFFFFFF; i++)
 			*(vu32 *)(ctxt.pkg1_id->secmon_base + secmon_patchset[i].off) = secmon_patchset[i].val;
 
-		gfx_prompt(con, ok, "Loaded warmboot.bin and secmon.\n");
+		gfx_prompt(con, ok, "Secmon patched.");
+		gfx_prompt(con, message, "Loading pkg2...");
 		
 		//Read package2.
 		if (!_read_emmc_pkg2(&ctxt, con)) {
-			gfx_prompt(con, error, "Failed to load pkg2.\n");
+			gfx_prompt(con, error, "Failed to load pkg2.");
 			return false;
 		}
 
-		gfx_prompt(con, ok, "Loaded pkg2.\n");
+		gfx_prompt(con, ok, "Loaded pkg2.");
+		gfx_prompt(con, message, "Decrypting pkg2...");
 
 		//Decrypt package2 and parse KIP1 blobs in INI1 section.
 		pkg2_hdr_t *pkg2_hdr = pkg2_decrypt(ctxt.pkg2);
 
+		gfx_prompt(con, ok, "Decrypted pkg2.");
+		gfx_prompt(con, message, "Parsing out KIP1 blobs...");
+
 		LIST_INIT(kip1_info);
 		pkg2_parse_kips(&kip1_info, pkg2_hdr);
 
-		gfx_prompt(con, ok, "Decrypted and parsed out KIP1 blobs.\n");
+		gfx_prompt(con, ok, "Parsed out KIP1 blobs.");
 		
-		//Use the kernel included in package2 in case we didn't load one already.
-		if (!ctxt.kernel)
-		{
-			ctxt.kernel = pkg2_hdr->data;
-			ctxt.kernel_size = pkg2_hdr->sec_size[PKG2_SEC_KERNEL];
-		}
+		ctxt.kernel = pkg2_hdr->data;
+		ctxt.kernel_size = pkg2_hdr->sec_size[PKG2_SEC_KERNEL];
+
+		gfx_prompt(con, message, "Merging `loader` and `sm` KIP1 blobs...");
 
 		//Merge extra KIP1s into loaded ones.
 		LIST_FOREACH_ENTRY(merge_kip_t, mki, &ctxt.kip1_list, link)
 			pkg2_merge_kip(&kip1_info, (pkg2_kip1_t *)mki->kip1);
 
+		gfx_prompt(con, ok, "Merged `loader` and `sm` KIP1 blobs.");
+		gfx_prompt(con, message, "Encrypting pkg2...");
+
 		//Rebuild and encrypt package2.
 		pkg2_build_encrypt((void *)0xA9800000, ctxt.kernel, ctxt.kernel_size, &kip1_info);
 
-		gfx_prompt(con, ok, "Rebuilt and encrypted pkg2.\n");
+		gfx_prompt(con, ok, "Encrypted pkg2.");
 	} else {
+		gfx_prompt(con, message, "Loading pkg2...");
+
 		//Read package2.
 		if (!_read_emmc_pkg2(&ctxt, con)) {
-			gfx_prompt(con, error, "Failed to load pkg2.\n");
+			gfx_prompt(con, error, "Failed to load pkg2.");
 			return false;
 		}
 
-		gfx_prompt(con, ok, "Loaded pkg2.\n");
+		gfx_prompt(con, ok, "Loaded pkg2.");
 
 		memcpy((void *)0xA9800000, ctxt.pkg2, ctxt.pkg2_size);
 	}
