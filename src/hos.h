@@ -18,9 +18,9 @@
 #define _HOS_H_
 
 #include "types.h"
-#include "ini.h"
+#include "gfx.h"
 
-int hos_launch(ini_sec_t *cfg);
+bool hos_launch(gfx_con_t * con, bool hen);
 int keygen(u8 *keyblob, u32 kb, void *tsec_fw);
 
 #endif

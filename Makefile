@@ -21,7 +21,6 @@ OBJS = $(addprefix $(BUILD)/, \
 	heap.o \
 	hos.o \
 	i2c.o \
-	kfuse.o \
 	lz.o \
 	max7762x.o \
 	mc.o \
@@ -39,7 +38,6 @@ OBJS = $(addprefix $(BUILD)/, \
 	se.o \
 	tsec.o \
 	uart.o \
-	ini.o \
 )
 OBJS += $(addprefix $(BUILD)/, diskio.o ff.o ffunicode.o)
 

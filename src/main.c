@@ -266,8 +266,8 @@ void launch_firmware(gfx_con_t * con, bool hen)
 	if (sd_mount(con)) {
 		// Draw Splash.
 
-		//if (!hos_launch(con, hen))
-		//	gfx_prompt(con, error, "Failed to launch firmware.\n")
+		if (!hos_launch(con, hen))
+			gfx_prompt(con, error, "Failed to launch firmware.\n");
 	}
 	else
 		gfx_prompt(con, error, "Failed to mount SD card (make sure that it is inserted).\n");
