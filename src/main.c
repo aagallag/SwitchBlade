@@ -274,9 +274,7 @@ void launch_firmware(gfx_con_t * con, bool hen)
 }
 
 void power_off(gfx_con_t * con)
-{
-	sd_unmount(con);
-
+{	
 	//TODO: we should probably make sure all regulators are powered off properly.
 	i2c_send_byte(I2C_5, 0x3C, MAX77620_REG_ONOFFCNFG1, MAX77620_ONOFFCNFG1_PWR_OFF);
 }

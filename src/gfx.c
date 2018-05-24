@@ -132,14 +132,14 @@ void gfx_putc(gfx_con_t *con, char c)
 			}
 			fb += con->gfx_ctxt->stride - 8;
 		}
-		con->x += 8;
+		con->y -= 8;
 	}
 	else if (c == '\n')
 	{
 		con->x += 8;
 		con->y = 1272;
-		if (con->y > con->gfx_ctxt->width - 8)
-			con->y = 0;
+		if (con->x > con->gfx_ctxt->width - 8)
+			con->x = 0;
 	}
 }
 
@@ -265,7 +265,7 @@ void gfx_prompt(gfx_con_t * con, gfx_prompt_type type, const char *fmt, ...) {
 			con->fgcol = 0xFF0000FF;
 			gfx_puts(con, "  Error  ");
 			con->fgcol = 0xFFFFFFFF;
-			gfx_putc(con, ']');
+			gfx_puts(con, "] ");
 			break;
 
 		case warning:
@@ -273,7 +273,7 @@ void gfx_prompt(gfx_con_t * con, gfx_prompt_type type, const char *fmt, ...) {
 			con->fgcol = 0xFF00FFFF;
 			gfx_puts(con, " Warning ");
 			con->fgcol = 0xFFFFFFFF;
-			gfx_putc(con, ']');
+			gfx_puts(con, "] ");
 			break;
 
 		case ok:
@@ -281,7 +281,7 @@ void gfx_prompt(gfx_con_t * con, gfx_prompt_type type, const char *fmt, ...) {
 			con->fgcol = 0xFF00FF00;
 			gfx_puts(con, "   Ok    ");
 			con->fgcol = 0xFFFFFFFF;
-			gfx_putc(con, ']');
+			gfx_puts(con, "] ");
 			break;
 
 		default:
