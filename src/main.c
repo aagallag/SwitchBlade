@@ -298,9 +298,9 @@ void ipl_main()
 	heap_init(0x90020000);
 
 	display_init();
-	u32 *fb = display_init_framebuffer();
+	u32 *fb = (u32 *)0xC0000000;
+	display_init_framebuffer(fb);
 	gfx_init_ctxt(&gfx_ctxt, fb, 720, 1280, 768);
-	gfx_clear(&gfx_ctxt, 0xFF000000);
 	gfx_con_init(&gfx_con, &gfx_ctxt);
 
 	int hen = true;
