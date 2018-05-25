@@ -2,7 +2,7 @@
 
 **DO NOT UPDATE FOR THIS!**
 
-Instantly loads up Horizon with homebrew enabled for 1.x/2.x/4.x/5.x Switches with all the other functions of Hekate removed. It is recommended to only use this for development, anyone else should wait for Atmosphere.
+Instantly loads up Horizon with homebrew enabled for 2.x/4.x/5.x Switches with all the other functions of Hekate removed. It is recommended to only use this for development, anyone else should wait for Atmosphere.
 
 * Starting the payload while holding Vol+ will power off the device.
 * Starting the payload while holding Vol- will start Horizon without homebrew enabled.
