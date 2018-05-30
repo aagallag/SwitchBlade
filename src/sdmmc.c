@@ -165,28 +165,26 @@ static int _sdmmc_storage_readwrite(sdmmc_storage_t *storage, u32 sector, u32 nu
 	while (num_sectors)
 	{
 		u32 blkcnt = 0;
-		//Retry 9 times on error.
-		u32 retries = 10;
-		do
-		{
-			if (_sdmmc_storage_readwrite_ex(storage, &blkcnt, sector, MIN(num_sectors, 0xFFFF), bbuf, is_write))
-				goto out;
-			else
+		u8 retries = 10;
+		while (retries > 0) {
+			if (_sdmmc_storage_readwrite_ex(storage, &blkcnt, sector, MIN(num_sectors, 0xFFFF), bbuf, is_write)) {
+				break;
+			} else {
 				retries--;
 
-			sleep(500000);
+				if (retries == 0)
+					return 0;
+			}
+		}
 
-		} while (retries);
-		return 0;
-
-out:;
-		DPRINTF("readwrite: %08X\n", blkcnt);
 		sector += blkcnt;
 		num_sectors -= blkcnt;
 		bbuf += 512 * blkcnt;
 	}
+
 	return 1;
 }
+
 
 int sdmmc_storage_read(sdmmc_storage_t *storage, u32 sector, u32 num_sectors, void *buf)
 {
