@@ -120,6 +120,7 @@ int keygen(u8 *keyblob, u32 kb, void *tsec_fw)
 	switch (kb) {
 		case KB_FIRMWARE_VERSION_100_200:
 		case KB_FIRMWARE_VERSION_300:
+		case KB_FIRMWARE_VERSION_301:
 			se_aes_unwrap_key(0x0D, 0x0F, console_keyseed);
 			se_aes_unwrap_key(0x0C, 0x0C, master_keyseed_retail);
 		break;
@@ -360,10 +361,23 @@ bool hos_launch(gfx_con_t * con, bool hen)
 		memcpy((void *)0xA9800000, ctxt.pkg2, ctxt.pkg2_size);
 	}
 
-	se_aes_key_clear(8);
-	se_aes_key_clear(11);
-	se_key_acc_ctrl(12, 0xFF);
-	se_key_acc_ctrl(15, 0xFF);
+	se_aes_key_clear(0x8);
+	se_aes_key_clear(0xB);
+	
+	switch (ctxt.pkg1_id->kb) {
+		case KB_FIRMWARE_VERSION_100_200:
+		case KB_FIRMWARE_VERSION_300:
+		case KB_FIRMWARE_VERSION_301:
+			se_key_acc_ctrl(0xC, 0xFF);
+			se_key_acc_ctrl(0xD, 0xFF);
+			break;
+		default:
+		case KB_FIRMWARE_VERSION_400:
+		case KB_FIRMWARE_VERSION_500:
+			se_key_acc_ctrl(0xC, 0xFF);
+			se_key_acc_ctrl(0xF, 0xFF);
+			break;
+	}
 
 	//Clear 'BootConfig'.
 	memset((void *)0x4003D000, 0, 0x3000);
