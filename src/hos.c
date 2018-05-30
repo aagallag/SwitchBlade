@@ -241,7 +241,7 @@ out:;
 	return res;
 }
 
-static bool _config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con)
+static bool config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con)
 {
 	FIL fp;
 	if (f_open(&fp, value, FA_READ) != FR_OK) {
@@ -260,19 +260,61 @@ static bool _config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con
 	return true;
 }
 
+bool load_modules(launch_ctxt_t *ctxt, gfx_con_t * con) {
+    FRESULT res;
+    FILINFO fno;
+    DIR dp;
+
+	res = f_opendir(&dp, "modules");
+    if (res != FR_OK) {
+        return false;
+    }
+
+	for (;;) {
+        res = f_readdir(&dp, &fno);
+
+        // Break the loop
+        if (res != FR_OK || fno.fname[0] == 0) {
+            break;
+        }
+        // Skip directories.
+        else if (fno.fattrib & AM_DIR) {
+            continue;
+        }
+        // Skip hidden files.
+        else if (fno.fattrib & AM_HID || fno.fname[0] == '.') {
+            continue;
+        }
+
+		char * extension = strrchr(fno.fname, '.');
+		if (extension != NULL && strcmp(extension, ".kip1") == 0) {
+			size_t directorySize = 8 * sizeof(char);
+		    size_t nameSize = strlen(fno.fname) * sizeof(char);
+
+			// Construct filename.
+			char * filename = malloc(directorySize + nameSize);
+			memcpy(filename, "modules/", directorySize);
+			memcpy(&filename[directorySize], fno.fname, nameSize);
+
+			if (!config_kip1(ctxt, filename, con))
+				return false;
+		}
+    }
+
+    // Clean up.
+    f_closedir(&dp);
+
+	return true;
+}
+
 bool hos_launch(gfx_con_t * con, bool hen)
 {
 	launch_ctxt_t ctxt;
 	memset(&ctxt, 0, sizeof(launch_ctxt_t));
 	list_init(&ctxt.kip1_list);
 
-	if (hen) {
-		if (!_config_kip1(&ctxt, "loader.kip1", con))
-			return false;
-
-		if (!_config_kip1(&ctxt, "sm.kip1", con))
-			return false;
-	}
+	if (hen && !load_modules(&ctxt, con))
+		return false;
 
 	gfx_prompt(con, message, "Loading pkg1...");
 
