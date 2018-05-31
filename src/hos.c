@@ -31,6 +31,7 @@
 #include "pkg1.h"
 #include "pkg2.h"
 #include "ff.h"
+#include "ini.h"
 
 enum KB_FIRMWARE_VERSION {
 	KB_FIRMWARE_VERSION_100_200 = 0,
@@ -69,8 +70,7 @@ static const u8 console_keyseed_4xx[0x10] =
 	{ 0x0C, 0x91, 0x09, 0xDB, 0x93, 0x93, 0x07, 0x81, 0x07, 0x3C, 0xC4, 0x16, 0x22, 0x7C, 0x6C, 0x28 };
 
 
-static void _se_lock()
-{
+static void _se_lock() {
 	for (u32 i = 0; i < 16; i++)
 		se_key_acc_ctrl(i, 0x15);
 
@@ -84,8 +84,7 @@ static void _se_lock()
 }
 
 // <-- key derivation algorithm
-int keygen(u8 *keyblob, u32 kb, void *tsec_fw)
-{
+int keygen(u8 *keyblob, u32 kb, void *tsec_fw) {
 	u8 tmp[0x10];
 
 	se_key_acc_ctrl(0x0D, 0x15);
@@ -146,26 +145,31 @@ int keygen(u8 *keyblob, u32 kb, void *tsec_fw)
 	se_aes_unwrap_key(0x08, 0x0C, key8_keyseed);
 }
 
-typedef struct _launch_ctxt_t
-{
+typedef struct _launch_ctxt_t {
 	void *keyblob;
+
 	void *pkg1;
 	const pkg1_id_t *pkg1_id;
+
+	void *warmboot;
+	u32 warmboot_size;
+	void *secmon;
+	u32 secmon_size;
+
 	void *pkg2;
+	u32 pkg2_size;
+
 	void *kernel;
 	u32 kernel_size;
-	u32 pkg2_size;
 	link_t kip1_list;
 } launch_ctxt_t;
 
-typedef struct _merge_kip_t
-{
+typedef struct _merge_kip_t {
 	void *kip1;
 	link_t link;
 } merge_kip_t;
 
-static bool _read_emmc_pkg1(launch_ctxt_t *ctxt, gfx_con_t * con)
-{
+static bool _read_emmc_pkg1(launch_ctxt_t *ctxt, gfx_con_t * con) {
 	int res = false;
 	sdmmc_storage_t storage;
 	sdmmc_t sdmmc;
@@ -195,8 +199,7 @@ out:;
 	return res;
 }
 
-static bool _read_emmc_pkg2(launch_ctxt_t *ctxt, gfx_con_t * con)
-{
+static bool _read_emmc_pkg2(launch_ctxt_t *ctxt, gfx_con_t * con) {
 	bool res = false;
 	sdmmc_storage_t storage;
 	sdmmc_t sdmmc;
@@ -241,11 +244,61 @@ out:;
 	return res;
 }
 
-static bool config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con)
-{
+static bool _config_warmboot(gfx_con_t * con, launch_ctxt_t * ctxt, const char * value) {
 	FIL fp;
 	if (f_open(&fp, value, FA_READ) != FR_OK) {
-		gfx_prompt(con, error, "Failed to load %s.", value);
+		gfx_prompt(con, error, "Failed to load warmboot %s.", value);
+		return false;
+	}
+	
+	ctxt->warmboot_size = f_size(&fp);
+	ctxt->warmboot = malloc(ctxt->warmboot_size);
+	f_read(&fp, ctxt->warmboot, ctxt->warmboot_size, NULL);
+
+	gfx_prompt(con, ok, "Loaded warmboot %s.", value);
+
+	f_close(&fp);
+	return true;
+}
+
+static bool _config_secmon(gfx_con_t * con, launch_ctxt_t * ctxt, const char * value) {
+	FIL fp;
+	if (f_open(&fp, value, FA_READ) != FR_OK) {
+		gfx_prompt(con, error, "Failed to load secmon %s.", value);
+		return false;
+	}
+
+	ctxt->secmon_size = f_size(&fp);
+	ctxt->secmon = malloc(ctxt->secmon_size);
+	f_read(&fp, ctxt->secmon, ctxt->secmon_size, NULL);
+
+	gfx_prompt(con, ok, "Loaded secmon %s.", value);
+
+	f_close(&fp);
+	return true;
+}
+
+static bool _config_kernel(gfx_con_t * con, launch_ctxt_t * ctxt, const char * value) {
+	FIL fp;
+	if (f_open(&fp, value, FA_READ) != FR_OK) {
+		gfx_prompt(con, error, "Failed to load kernel %s.", value);
+		return false;
+	}
+
+	ctxt->kernel_size = f_size(&fp);
+	ctxt->kernel = malloc(ctxt->kernel_size);
+	f_read(&fp, ctxt->kernel, ctxt->kernel_size, NULL);
+
+	gfx_prompt(con, ok, "Loaded kernel %s.", value);
+
+	f_close(&fp);
+	return true;
+}
+
+static bool _config_kip1(gfx_con_t * con, launch_ctxt_t * ctxt, const char * value) {
+	FIL fp;
+	if (f_open(&fp, value, FA_READ) != FR_OK) {
+		gfx_prompt(con, error, "Failed to load kip1 %s.", value);
 		return false;
 	}
 
@@ -253,67 +306,62 @@ static bool config_kip1(launch_ctxt_t *ctxt, const char *value, gfx_con_t * con)
 	mkip1->kip1 = malloc(f_size(&fp));
 	f_read(&fp, mkip1->kip1, f_size(&fp), NULL);
 
-	gfx_prompt(con, ok, "Loaded %s.", value);
+	gfx_prompt(con, ok, "Loaded kip1 %s.", value);
 
 	f_close(&fp);
 	list_append(&ctxt->kip1_list, &mkip1->link);
 	return true;
 }
 
-bool load_modules(launch_ctxt_t *ctxt, gfx_con_t * con) {
-    FRESULT res;
-    FILINFO fno;
-    DIR dp;
+typedef struct _cfg_handler_t {
+	const char *key;
+	bool (*handler)(gfx_con_t * con, launch_ctxt_t *ctxt, const char *value);
+} cfg_handler_t;
 
-	res = f_opendir(&dp, "modules");
-    if (res != FR_OK) {
-        return false;
-    }
+static const cfg_handler_t _config_handlers[] = {
+	{ "warmboot", _config_warmboot },
+	{ "secmon", _config_secmon },
+	{ "kernel", _config_kernel },
+	{ "kip1", _config_kip1 },
+	{ NULL, NULL },
+};
 
-	for (;;) {
-        res = f_readdir(&dp, &fno);
-
-        // Break the loop
-        if (res != FR_OK || fno.fname[0] == 0) {
-            break;
-        }
-        // Skip directories.
-        else if (fno.fattrib & AM_DIR) {
-            continue;
-        }
-        // Skip hidden files.
-        else if (fno.fattrib & AM_HID || fno.fname[0] == '.') {
-            continue;
-        }
-
-		char * extension = strrchr(fno.fname, '.');
-		if (extension != NULL && strcmp(extension, ".kip1") == 0) {
-			size_t directorySize = 8 * sizeof(char);
-		    size_t nameSize = strlen(fno.fname) * sizeof(char);
-
-			// Construct filename.
-			char * filename = malloc(directorySize + nameSize);
-			memcpy(filename, "modules/", directorySize);
-			memcpy(&filename[directorySize], fno.fname, nameSize);
-
-			if (!config_kip1(ctxt, filename, con))
+static bool _config(gfx_con_t * con, launch_ctxt_t *ctxt, ini_sec_t *cfg) {
+	LIST_FOREACH_ENTRY(ini_kv_t, kv, &cfg->kvs, link) {
+		for(u32 i = 0; _config_handlers[i].key; i++) {
+			if (!strcmp(_config_handlers[i].key, kv->key) && !_config_handlers[i].handler(con, ctxt, kv->val)) {
 				return false;
+			}
 		}
-    }
-
-    // Clean up.
-    f_closedir(&dp);
+	}
 
 	return true;
 }
 
-bool hos_launch(gfx_con_t * con, bool hen)
-{
+ini_sec_t * loadConfig(gfx_con_t * con, bool hen) {
+	LIST_INIT(ini_sections);
+	if (ini_parse(&ini_sections, "switchblade.ini")) {
+		LIST_FOREACH_ENTRY(ini_sec_t, ini_sec, &ini_sections, link) {
+			if (hen && strcmp(ini_sec->name, "hen") == 0) {
+				return ini_sec;
+			} else if (!hen && strcmp(ini_sec->name, "stock") == 0) {
+				return ini_sec;
+			}
+		}
+	} else {
+		gfx_prompt(con, error, "Could not find or open switchblade.ini.");
+	}
+
+	return NULL;
+}
+
+bool hos_launch(gfx_con_t * con, bool hen) {
 	launch_ctxt_t ctxt;
 	memset(&ctxt, 0, sizeof(launch_ctxt_t));
 	list_init(&ctxt.kip1_list);
 
-	if (hen && !load_modules(&ctxt, con))
+	ini_sec_t *cfg = loadConfig(con, hen);
+	if (cfg && !_config(con, &ctxt, cfg))
 		return false;
 
 	gfx_prompt(con, message, "Loading pkg1...");
