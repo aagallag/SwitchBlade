@@ -1,7 +1,5 @@
 # SwitchBlade
 
-**DO NOT UPDATE FOR THIS!**
-
 Instantly loads up Horizon with homebrew enabled for all Switches (< 5.1.0) with all the other functions of Hekate removed. It is recommended to only use this for development, anyone else should wait for Atmosphere.
 
 * Starting the payload while holding Vol+ will power off the device.
