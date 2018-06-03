@@ -299,7 +299,7 @@ void ipl_main()
 
 	display_init();
 	u32 *fb = (u32 *)0xC0000000;
-	display_init_framebuffer(fb);
+	display_init_framebuffer(fb, 0xFF000000);
 	gfx_init_ctxt(&gfx_ctxt, fb, 720, 1280, 768);
 	gfx_con_init(&gfx_con, &gfx_ctxt);
 

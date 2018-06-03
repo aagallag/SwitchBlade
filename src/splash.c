@@ -106,7 +106,7 @@ flist_t * read_splashes_from_directory(char * directory) {
 
 void print_header(gfx_con_t * con) {
     static const char switchblade[] =
-		"SwitchBlade v2.0.4 - By StevenMattera\n\n"
+		"SwitchBlade v2.0.5 - By StevenMattera\n\n"
 		"Based on the awesome work of naehrwert, st4rk\n"
 		"Thanks to: derrek, nedwill, plutoo, shuffle2, smea, thexyz, yellows8\n"
 		"Greetings to: fincs, hexkyz, SciresM, Shiny Quagsire, WinterMute\n"
